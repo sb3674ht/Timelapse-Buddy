@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TimeLapse Calculator</title>
+  <meta name="theme-color" content="#1f2937">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    :root { --bg:#ffffff; --fg:#111827; --muted:#6b7280; --card:#f9fafb; --accent:#1f2937; --accent2:#2563eb;}
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0b1220; --fg:#e5e7eb; --muted:#9ca3af; --card:#0f172a; --accent:#111827; --accent2:#60a5fa;}
+    }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;line-height:1.5}
+    .wrap{max-width:720px;margin:0 auto;padding:20px;min-height:100vh;display:flex;flex-direction:column;gap:16px}
+    h1{font-size:1.75rem;margin:8px 0;text-align:center}
+    .card{background:var(--card);border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,.06)}
+    label{display:block;font-size:.9rem;color:var(--muted);margin-bottom:6px}
+    input{width:100%;padding:12px 14px;border:1px solid rgba(0,0,0,.15);border-radius:12px;background:#fff;color:#111827}
+    @media (prefers-color-scheme: dark){ input{background:#0b1220;color:#e5e7eb;border-color:rgba(255,255,255,.12)}}
+    .grid{display:grid;gap:12px;grid-template-columns:1fr}
+    @media (min-width:700px){ .grid{grid-template-columns:1fr 1fr} }
+    .result h2{margin:0 0 8px 0;font-size:1.25rem}
+    .stat{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:#fff;color:#111827;border:1px solid rgba(0,0,0,.08)}
+    @media (prefers-color-scheme: dark){ .stat{background:#0b1220;color:#e5e7eb;border-color:rgba(255,255,255,.1)}}
+    .stat b{font-variant-numeric:tabular-nums}
+    .hint{font-size:.85rem;color:var(--muted)}
+    .warn{padding:10px 12px;border-radius:12px;background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.6)}
+    footer{margin-top:auto;text-align:center;color:var(--muted);font-size:.9rem}
+    .btn{display:inline-block;padding:10px 14px;border-radius:12px;background:var(--accent2);color:white;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>TimeLapse Calculator</h1>
+
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label>Event Duration (minutes)</label>
+          <input id="eventMinutes" type="number" min="0" step="1" value="60">
+        </div>
+        <div>
+          <label>Final Video Length (seconds)</label>
+          <input id="videoSeconds" type="number" min="1" step="1" value="10">
+        </div>
+        <div>
+          <label>Frame Rate (fps)</label>
+          <input id="frameRate" type="number" min="1" step="1" value="30">
+        </div>
+        <div>
+          <label>Exposure Time (seconds, optional)</label>
+          <input id="exposure" type="number" min="0" step="0.1" value="0">
+        </div>
+        <div>
+          <label>Estimated File Size per Photo (MB)</label>
+          <input id="fileSize" type="number" min="0" step="0.1" value="10">
+        </div>
+      </div>
+      <p class="hint">Tip: set <em>video length</em> and <em>fps</em> to control total frames. The interval adjusts to fit your event duration.</p>
+    </div>
+
+    <div class="card result">
+      <h2>Results</h2>
+      <div class="stat"><span>Total Frames Needed</span><b id="frames">300</b></div>
+      <div class="stat"><span>Interval Between Shots</span><b id="interval">12.00 s</b></div>
+      <div class="stat"><span>Total Photos</span><b id="photos">300</b></div>
+      <div class="stat"><span>Estimated Storage</span><b id="storage">3000.0 MB</b></div>
+      <div id="warning" class="warn" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <footer>
+      <a class="btn" href="#" id="installBtn" style="display:none">Install App</a>
+      <div style="margin-top:8px">Works offline once loaded.</div>
+    </footer>
+  </div>
+
+  <script>
+    const els = {
+      minutes: document.getElementById('eventMinutes'),
+      video: document.getElementById('videoSeconds'),
+      fps: document.getElementById('frameRate'),
+      exposure: document.getElementById('exposure'),
+      file: document.getElementById('fileSize'),
+      frames: document.getElementById('frames'),
+      interval: document.getElementById('interval'),
+      photos: document.getElementById('photos'),
+      storage: document.getElementById('storage'),
+      warn: document.getElementById('warning')
+    };
+
+    function calc(){
+      const eventMinutes = parseFloat(els.minutes.value || 0);
+      const videoSeconds = Math.max(1, parseFloat(els.video.value || 1));
+      const fps = Math.max(1, parseFloat(els.fps.value || 1));
+      const exposure = Math.max(0, parseFloat(els.exposure.value || 0));
+      const fileSize = Math.max(0, parseFloat(els.file.value || 0));
+
+      const totalFrames = Math.round(videoSeconds * fps);
+      const eventSeconds = eventMinutes * 60;
+      const interval = eventSeconds / totalFrames;
+      const totalPhotos = totalFrames;
+      const storage = totalPhotos * fileSize;
+
+      els.frames.textContent = totalFrames.toString();
+      els.interval.textContent = (interval).toFixed(2) + ' s';
+      els.photos.textContent = totalPhotos.toString();
+      els.storage.textContent = storage.toFixed(1) + ' MB';
+
+      if (exposure > 0 && exposure > interval){
+        els.warn.style.display = 'block';
+        els.warn.textContent = `Warning: Exposure (${exposure.toFixed(2)} s) exceeds interval (${interval.toFixed(2)} s). Consider raising fps, shortening video length, or lowering exposure.`;
+      } else {
+        els.warn.style.display = 'none';
+      }
+    }
+
+    ['input','change'].forEach(evt => {
+      for (const id of ['eventMinutes','videoSeconds','frameRate','exposure','fileSize']) {
+        document.getElementById(id).addEventListener(evt, calc);
+      }
+    });
+    calc();
+
+    // PWA: register service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js');
+      });
+    }
+
+    // Optional: basic install prompt button
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.style.display = 'inline-block';
+    });
+    installBtn?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+    });
+  </script>
+</body>
+</html>
